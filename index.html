@@ -523,10 +523,8 @@ function animate(timestamp, frame, referenceSpace) {
     .premultiply(localQuaternion.setFromAxisAngle(localVector.set(0, 0, 1), f * Math.PI*2));
   // swordMesh.quaternion.setFromAxisAngle(localVector.set(1, 0, 0), Math.PI/2);
   const swordTransform = swordMesh.body.getWorldTransform(transform);
-  const swordOrigin = swordTransform.getOrigin();
-  swordOrigin.setX(swordMesh.position.x);
-  swordOrigin.setY(swordMesh.position.y);
-  swordOrigin.setZ(swordMesh.position.z);
+  ammoVector3.setValue(swordMesh.position.x, swordMesh.position.y, swordMesh.position.z);
+  swordTransform.setOrigin(ammoVector3);
   ammoQuaternion.setValue(swordMesh.quaternion.x, swordMesh.quaternion.y, swordMesh.quaternion.z, swordMesh.quaternion.w);
   swordTransform.setRotation(ammoQuaternion);
 
