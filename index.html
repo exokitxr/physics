@@ -7,8 +7,8 @@
 }
 body {
   margin: 0;
-  background-color: #000;
-  /* color: #F5F5F5; */
+  /* background-color: #000;
+  color: #F5F5F5; */
   font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Roboto","Oxygen","Ubuntu","Cantarell","Fira Sans","Droid Sans","Helvetica Neue",sans-serif;
   font-size: 15px;
 }
@@ -122,7 +122,7 @@ li {
 canvas {
   width: 100% !important;
   height: 100% !important;
-  background-color: #f8f8f8;
+  /* background-color: #f8f8f8; */
   outline: none;
 }
 a {
@@ -358,10 +358,13 @@ header > .login-form.phase-3 > .phaseless-content
     <script type=module>
 import ModelLoader from 'https://model-loader.exokit.org/model-loader.js';
 
-const localVector = new THREE.Vector3();
-
 window.Module = { TOTAL_MEMORY: 100*1024*1024 };
 Ammo().then(async Ammo => {
+
+const localVector = new THREE.Vector3();
+const localQuaternion = new THREE.Quaternion();
+const ammoVector3 = new Ammo.btVector3();
+const ammoQuaternion = new Ammo.btQuaternion();
 
 const scene = new THREE.Scene();
 
@@ -376,7 +379,7 @@ camera.position.z = 2;
 const ambientLight = new THREE.AmbientLight(0x808080);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 3);
 directionalLight.position.set(0.5, 1, 0.5);
 scene.add(directionalLight);
 
@@ -389,13 +392,14 @@ container.add(gridHelper);
 
 const renderer = new THREE.WebGLRenderer({
   // canvas: document.getElementById('canvas'),
-  // alpha: true,
+  alpha: true,
   antialias: true,
 });
 // console.log('set size', window.innerWidth, window.innerHeight);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.sortObjects = false;
+renderer.physicallyCorrectLights = true;
 document.getElementById('iframe-wrapper').appendChild(renderer.domElement);
 
 const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -404,15 +408,10 @@ orbitControls.enableMiddleZoom = false;
 orbitControls.update();
 
 let dynamicsWorld = null;
-const meshes = [];
+let meshes = [];
 let swordMesh = null;
-const boxGeometry = new THREE.BoxBufferGeometry(0.1, 0.1, 0.1);
-const boxMaterial = new THREE.MeshPhongMaterial({
-  color: 0xFF0000,
-});
 const _makeConvexHullShape = object => {
   const shape = new Ammo.btConvexHullShape();
-  const ammoVector3 = new Ammo.btVector3();
   let numPoints = 0;
   object.updateMatrixWorld();
   object.traverse(o => {
@@ -432,6 +431,33 @@ const _makeConvexHullShape = object => {
   });
   console.log('sword points', numPoints);
   return shape;
+};
+const boxGeometry = new THREE.BoxBufferGeometry(0.1, 0.1, 0.1);
+const boxMaterial = new THREE.MeshPhongMaterial({
+  color: 0xFF0000,
+});
+const boxShape = new Ammo.btBoxShape(new Ammo.btVector3(0.1/2, 0.1/2, 0.1/2));
+const _addBody = () => {
+  var startTransform = new Ammo.btTransform();
+  startTransform.setIdentity();
+  startTransform.setOrigin(new Ammo.btVector3(-0.1+Math.random()*0.2, 1.5, -0.1+Math.random()*0.2));
+  var mass = 1;
+  var localInertia = new Ammo.btVector3(0, 0, 0);
+  boxShape.calculateLocalInertia(mass, localInertia);
+
+  var myMotionState = new Ammo.btDefaultMotionState(startTransform);
+  var rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, myMotionState, boxShape, localInertia);
+  var body = new Ammo.btRigidBody(rbInfo);
+
+  dynamicsWorld.addRigidBody(body);
+  // bodies.push(body);
+
+  const mesh = new THREE.Mesh(boxGeometry, boxMaterial);
+  mesh.frustumCulled = false;
+  mesh.body = body;
+  mesh.endTime = Date.now() + 10*1000;
+  scene.add(mesh);
+  meshes.push(mesh);
 };
 const _setupPhysics = async () => {
   var collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
@@ -457,28 +483,6 @@ const _setupPhysics = async () => {
     dynamicsWorld.addRigidBody(body);
   }
 
-  var boxShape = new Ammo.btBoxShape(new Ammo.btVector3(0.1/2, 0.1/2, 0.1/2));
-  for (let i = 0; i < 100; i++) {
-    var startTransform = new Ammo.btTransform();
-    startTransform.setIdentity();
-    startTransform.setOrigin(new Ammo.btVector3(-0.1+Math.random()*0.2, 0, -0.1+Math.random()*0.2));
-    var mass = 1;
-    var localInertia = new Ammo.btVector3(0, 0, 0);
-    boxShape.calculateLocalInertia(mass, localInertia);
-
-    var myMotionState = new Ammo.btDefaultMotionState(startTransform);
-    var rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, myMotionState, boxShape, localInertia);
-    var body = new Ammo.btRigidBody(rbInfo);
-
-    dynamicsWorld.addRigidBody(body);
-    // bodies.push(body);
-
-    const mesh = new THREE.Mesh(boxGeometry, boxMaterial);
-    mesh.body = body;
-    scene.add(mesh);
-    meshes.push(mesh);
-  }
-
   {
     const swordModel = await ModelLoader.loadModelUrl('sword.glb');
     swordMesh = swordModel.scene;
@@ -486,7 +490,7 @@ const _setupPhysics = async () => {
 
     var swordTransform = new Ammo.btTransform();
     swordTransform.setIdentity();
-    // swordTransform.setOrigin(new Ammo.btVector3(0, 2, 0));
+    swordTransform.setOrigin(new Ammo.btVector3(0, 0, 0));
 
     var mass = 0;
     var localInertia = new Ammo.btVector3(0, 0, 0);
@@ -503,31 +507,52 @@ const _setupPhysics = async () => {
 await _setupPhysics();
 
 let lastTimestamp = Date.now();
-const transform = new Ammo.btTransform(); // taking this out of readBulletObject reduces the leaking
+const transform = new Ammo.btTransform();
 function animate(timestamp, frame, referenceSpace) {
   const now = Date.now();
   const timeDiff = now - lastTimestamp;
 
-  swordMesh.position.x = -0.5 + Math.sin((now%3000)/3000 * Math.PI*2);
-  const swordOrigin = swordMesh.body.getWorldTransform().getOrigin();
+  const f = (now%3000)/3000;
+  swordMesh.position.x = Math.sin(f*Math.PI*2)*0.5;
+  swordMesh.position.y = 0.1;
+  swordMesh.position.z = -0.5;
+  swordMesh.quaternion.setFromAxisAngle(localVector.set(1, 0, 0), Math.PI/2 + Math.sin(f * Math.PI*2 * 4)*Math.PI/8)
+    .premultiply(localQuaternion.setFromAxisAngle(localVector.set(0, 0, 1), f * Math.PI*2));
+  // swordMesh.quaternion.setFromAxisAngle(localVector.set(1, 0, 0), Math.PI/2);
+  const swordTransform = swordMesh.body.getWorldTransform();
+  const swordOrigin = swordTransform.getOrigin();
   swordOrigin.setX(swordMesh.position.x);
+  swordOrigin.setY(swordMesh.position.y);
+  swordOrigin.setZ(swordMesh.position.z);
+  ammoQuaternion.setValue(swordMesh.quaternion.x, swordMesh.quaternion.y, swordMesh.quaternion.z, swordMesh.quaternion.w);
+  swordTransform.setRotation(ammoQuaternion);
 
-  dynamicsWorld.stepSimulation(timeDiff, 2);
+  dynamicsWorld.stepSimulation(timeDiff/1000, 2);
 
-  for (let i = 0; i < meshes.length; i++) {
-    const mesh = meshes[i];
-    mesh.body.getMotionState().getWorldTransform(transform);
-    const origin = transform.getOrigin();
-    mesh.position.set(origin.x(), origin.y(), origin.z());
-    const rotation = transform.getRotation();
-    mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
-  }
+  meshes = meshes.filter(mesh => {
+    if (now < mesh.endTime) {
+      mesh.body.getMotionState().getWorldTransform(transform);
+      const origin = transform.getOrigin();
+      mesh.position.set(origin.x(), origin.y(), origin.z());
+      const rotation = transform.getRotation();
+      mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+      return true;
+    } else {
+      scene.remove(mesh);
+      dynamicsWorld.removeRigidBody(mesh.body);
+      return false;
+    }
+  });
 
   renderer.render(scene, camera);
 
   lastTimestamp = now;
 }
 renderer.setAnimationLoop(animate);
+
+setInterval(() => {
+  _addBody();
+}, 100);
 
 });
     </script>
