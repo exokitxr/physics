@@ -541,6 +541,7 @@ function animate(timestamp, frame, referenceSpace) {
     } else {
       scene.remove(mesh);
       dynamicsWorld.removeRigidBody(mesh.body);
+      Ammo.destroy(mesh.body);
       return false;
     }
   });
