@@ -522,7 +522,7 @@ function animate(timestamp, frame, referenceSpace) {
   swordMesh.quaternion.setFromAxisAngle(localVector.set(1, 0, 0), Math.PI/2 + Math.sin(f * Math.PI*2 * 4)*Math.PI/8)
     .premultiply(localQuaternion.setFromAxisAngle(localVector.set(0, 0, 1), f * Math.PI*2));
   // swordMesh.quaternion.setFromAxisAngle(localVector.set(1, 0, 0), Math.PI/2);
-  const swordTransform = swordMesh.body.getWorldTransform();
+  const swordTransform = swordMesh.body.getWorldTransform(transform);
   const swordOrigin = swordTransform.getOrigin();
   swordOrigin.setX(swordMesh.position.x);
   swordOrigin.setY(swordMesh.position.y);
